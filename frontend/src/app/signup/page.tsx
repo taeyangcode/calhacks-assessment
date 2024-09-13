@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
+import { decodeJWT, isValidUserPayload, UserPayload } from "@/utility/jwt";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
@@ -27,9 +28,23 @@ export default function Signup() {
 	const { toast } = useToast();
 
 	useEffect(() => {
-		const token = localStorage.getItem("token");
-
+		const token = localStorage.getItem("token") ?? "";
 		if (!token) {
+			localStorage.removeItem("token");
+			return;
+		}
+
+		try {
+			const userPayload: UserPayload = decodeJWT(token);
+
+			if (!isValidUserPayload(userPayload)) {
+				localStorage.removeItem("token");
+				return;
+			}
+
+			router.push(`/badge/${userPayload.id}`);
+		} catch {
+			localStorage.removeItem("token");
 			return;
 		}
 	}, []);
@@ -66,9 +81,7 @@ export default function Signup() {
 			const token: string = await response.text();
 			localStorage.setItem("token", token.replaceAll('"', ""));
 
-			setSubmitClicked(() => false);
-
-			router.push("/login");
+			router.push("/badge/create");
 		}
 
 		signupUser();

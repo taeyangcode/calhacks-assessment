@@ -2,10 +2,10 @@ use actix_cors::Cors;
 use actix_web::{
     http::header::ContentType,
     web::{self},
-    App, HttpResponse, HttpServer,
+    App, HttpRequest, HttpResponse, HttpServer,
 };
-use firestore::{FirestoreDb, FirestoreDbOptions};
-use jsonwebtoken::{EncodingKey, Header};
+use firestore::{paths, FirestoreDb, FirestoreDbOptions};
+use jsonwebtoken::{decode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use strum::AsRefStr;
 
@@ -16,10 +16,19 @@ enum DatabaseCollection {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Claims<'a> {
+struct Claims {
     iat: u64,
     exp: u64,
-    id: &'a str,
+    id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct BadgeDetails {
+    pub full_name: String,
+    pub university: String,
+    pub major: String,
+    pub graduation_date: u64,
+    pub github: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -43,7 +52,7 @@ impl User {
         let claims = Claims {
             iat: current_timestamp,
             exp: current_timestamp + User::WEEK_IN_SECONDS,
-            id: self.id.as_ref().unwrap(),
+            id: self.id.as_ref().unwrap().clone(),
         };
 
         let jwt_secret = dotenvy::var("JWT_SECRET").unwrap();
@@ -145,6 +154,72 @@ async fn login(database: web::Data<FirestoreDb>, body: web::Json<User>) -> actix
     }
 }
 
+async fn badge_create(
+    request: HttpRequest,
+    database: web::Data<FirestoreDb>,
+    body: web::Json<BadgeDetails>,
+) -> actix_web::Result<actix_web::HttpResponse> {
+    let badge_details = body.0;
+
+    let token = request
+        .headers()
+        .get("Authorization")
+        .unwrap()
+        .to_str()
+        .unwrap();
+
+    let jwt_secret = dotenvy::var("JWT_SECRET").unwrap();
+    let token_data = decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(jwt_secret.as_bytes()),
+        &Validation::default(),
+    )
+    .unwrap();
+
+    if badge_details.full_name.len() == 0 {
+        return Ok(HttpResponse::UnprocessableEntity()
+            .insert_header(ContentType::html())
+            .finish());
+    }
+
+    let user_collection = match database
+        .fluent()
+        .select()
+        .from(DatabaseCollection::Users.as_ref())
+        .obj::<User>()
+        .query()
+        .await
+    {
+        Ok(users) => users,
+        Err(_) => return Ok(HttpResponse::InternalServerError().finish()),
+    };
+
+    let mut user = user_collection
+        .into_iter()
+        .find(|registered| registered.id == Some(token_data.claims.id.to_string()))
+        .unwrap();
+
+    user.full_name = Some(badge_details.full_name);
+    user.github = Some(badge_details.github);
+    user.graduation_date = Some(badge_details.graduation_date);
+    user.major = Some(badge_details.major);
+    user.university = Some(badge_details.university);
+
+    match database
+        .fluent()
+        .update()
+        .fields(paths!(User::{full_name, github, graduation_date, major, university}))
+        .in_col(DatabaseCollection::Users.as_ref())
+        .document_id(user.id.as_ref().unwrap())
+        .object(&user)
+        .execute::<User>()
+        .await
+    {
+        Err(_) => return Ok(HttpResponse::InternalServerError().finish()),
+        _ => Ok(HttpResponse::Ok().finish()),
+    }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let _ = dotenvy::from_path("./.env");
@@ -169,6 +244,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(database.clone()))
             .route("/api/signup", web::post().to(signup))
             .route("/api/login", web::post().to(login))
+            .route("/api/badge", web::post().to(badge_create))
+        // .route("/api/badge/{id}", web::get().to(badge))
     })
     .bind(("127.0.0.1", backend_port))?
     .run()
