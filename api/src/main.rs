@@ -60,26 +60,29 @@ impl User {
 async fn signup(database: web::Data<FirestoreDb>, body: web::Json<User>) -> actix_web::Result<actix_web::HttpResponse> {
     let mut signup_user = body.0;
 
-    let user_collection = database
+    let user_collection = match database
         .fluent()
         .select()
         .from(DatabaseCollection::Users.as_ref())
         .obj::<User>()
         .query()
         .await
-        .or(Err(ErrorInternalServerError("ERROR 500: Internal Server Error")))?;
+    {
+        Ok(users) => users,
+        Err(_) => return Ok(HttpResponse::InternalServerError().finish()),
+    };
 
     let user_already_exists = user_collection
         .into_iter()
         .any(|registered| registered.email == signup_user.email);
 
     if user_already_exists {
-        return Err(ErrorConflict("ERROR 409: Conflict"));
+        return Ok(HttpResponse::Conflict().finish());
     }
 
     signup_user.id = Some(uuid::Uuid::new_v4().to_string());
 
-    let _ = database
+    let _ = match database
         .fluent()
         .insert()
         .into(DatabaseCollection::Users.as_ref())
@@ -87,11 +90,15 @@ async fn signup(database: web::Data<FirestoreDb>, body: web::Json<User>) -> acti
         .object(&signup_user)
         .execute::<User>()
         .await
-        .or(Err(ErrorInternalServerError("ERROR 500: Internal Server Error")))?;
+    {
+        Err(_) => return Ok(HttpResponse::InternalServerError().finish()),
+        _ => (),
+    };
 
-    let token = signup_user
-        .encode()
-        .or(Err(ErrorInternalServerError("ERROR 500: Internal Server Error")))?;
+    let token = match signup_user.encode() {
+        Ok(token) => token,
+        Err(_) => return Ok(HttpResponse::InternalServerError().finish()),
+    };
 
     Ok(HttpResponse::Ok()
         .content_type(ContentType::json())
