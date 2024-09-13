@@ -4,8 +4,8 @@
 
 ### Prerequisites
 
-* `pnpm` and Rust toolchain (`cargo`)
-* Firestore project
+- `pnpm` and Rust toolchain (`cargo`)
+- Firestore project
 
 #### Navigate to Project
 
@@ -16,18 +16,18 @@
 
 #### Setup Environment Variables
 
-
 ```
 > cp .env.template .env
 ```
 
 Input values for each key; key names are self-explanatory.
-*Note: Make sure to copy your Firebase service account credentials (.json) into the base directory*
+
+_Note: Make sure to copy your Firebase service account credentials (.json) into the base directory_
 
 #### Building
 
 ```
-> cargo build --manifest-path api/Cargo.toml 
+> cargo build --manifest-path api/Cargo.toml
 ```
 
 #### Run Project
