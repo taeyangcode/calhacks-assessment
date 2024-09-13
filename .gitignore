@@ -4,6 +4,9 @@
 # environment variables
 .env
 
+# config
+calhacks-service-account.json
+
 # rust
 
 # build directory
