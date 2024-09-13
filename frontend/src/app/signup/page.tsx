@@ -27,6 +27,14 @@ export default function Signup() {
 	const { toast } = useToast();
 
 	useEffect(() => {
+		const token = localStorage.getItem("token");
+
+		if (!token) {
+			return;
+		}
+	}, []);
+
+	useEffect(() => {
 		if (!submitClicked) {
 			return;
 		}

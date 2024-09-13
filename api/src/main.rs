@@ -111,6 +111,40 @@ async fn signup(database: web::Data<FirestoreDb>, body: web::Json<User>) -> acti
         .json(token))
 }
 
+async fn login(database: web::Data<FirestoreDb>, body: web::Json<User>) -> actix_web::Result<actix_web::HttpResponse> {
+    let login_user = body.0;
+
+    let user_collection = match database
+        .fluent()
+        .select()
+        .from(DatabaseCollection::Users.as_ref())
+        .obj::<User>()
+        .query()
+        .await
+    {
+        Ok(users) => users,
+        Err(_) => return Ok(HttpResponse::InternalServerError().finish()),
+    };
+
+    let user = user_collection
+        .into_iter()
+        .find(|registered| registered.email == login_user.email && registered.password == login_user.password);
+
+    if let Some(user) = user {
+        let token = match user.encode() {
+            Ok(token) => token,
+            Err(_) => return Ok(HttpResponse::InternalServerError().finish()),
+        };
+
+        return Ok(HttpResponse::Ok()
+            .content_type(ContentType::json())
+            .insert_header(("Location", format!("/badges/{}", user.id.unwrap())))
+            .json(token));
+    } else {
+        return Ok(HttpResponse::UnprocessableEntity().finish());
+    }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let _ = dotenvy::from_path("./.env");
@@ -134,6 +168,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Cors::permissive())
             .app_data(web::Data::new(database.clone()))
             .route("/api/signup", web::post().to(signup))
+            .route("/api/login", web::post().to(login))
     })
     .bind(("127.0.0.1", backend_port))?
     .run()
