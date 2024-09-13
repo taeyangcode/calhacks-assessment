@@ -1,0 +1,10 @@
+# os specific
+**/*.DS_Store
+
+# rust
+
+# build directory
+api/target/
+
+# cargo lock file
+api/Cargo.lock
