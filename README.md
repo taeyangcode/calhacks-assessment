@@ -28,10 +28,14 @@ _Note: Make sure to copy your Firebase service account credentials (.json) into 
 
 ```
 > cargo build --manifest-path api/Cargo.toml
+> pnpm -C frontend install
 ```
 
 #### Run Project
 
+Running two terminal instances is recommended.
+
 ```
 > cargo run --manifest-path api/Cargo.toml
+> pnpm -C frontend dev
 ```

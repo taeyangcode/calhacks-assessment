@@ -1,6 +1,5 @@
 use actix_cors::Cors;
 use actix_web::{
-    error::{ErrorConflict, ErrorInternalServerError},
     http::header::ContentType,
     web::{self},
     App, HttpResponse, HttpServer,
@@ -60,6 +59,12 @@ impl User {
 async fn signup(database: web::Data<FirestoreDb>, body: web::Json<User>) -> actix_web::Result<actix_web::HttpResponse> {
     let mut signup_user = body.0;
 
+    if signup_user.email.len() == 0 || signup_user.password.len() == 0 {
+        return Ok(HttpResponse::UnprocessableEntity()
+            .insert_header(ContentType::html())
+            .finish());
+    }
+
     let user_collection = match database
         .fluent()
         .select()
@@ -112,7 +117,6 @@ async fn main() -> std::io::Result<()> {
 
     let database_project_id = dotenvy::var("FIRESTORE_PROJECT_ID").unwrap();
     let database_service_account_path = dotenvy::var("FIREBASE_SERVICE_ACCOUNT_PATH").unwrap();
-    let frontend_port = dotenvy::var("FRONTEND_PORT").unwrap();
     let backend_port = dotenvy::var("BACKEND_PORT")
         .unwrap()
         .parse::<u16>()
@@ -126,10 +130,8 @@ async fn main() -> std::io::Result<()> {
     .unwrap();
 
     HttpServer::new(move || {
-        let cors = Cors::default().allowed_origin(format!("http://localhost:{}/", frontend_port).as_str());
-
         App::new()
-            .wrap(cors)
+            .wrap(Cors::permissive())
             .app_data(web::Data::new(database.clone()))
             .route("/api/signup", web::post().to(signup))
     })
