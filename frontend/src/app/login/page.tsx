@@ -41,7 +41,7 @@ export default function Login() {
 				return;
 			}
 
-			router.push(`/badge/${userPayload.id}`);
+			router.push(`/badges/${userPayload.id}`);
 		} catch {
 			localStorage.removeItem("token");
 			return;
@@ -82,7 +82,7 @@ export default function Login() {
 
 			const { id }: UserPayload = decodeJWT(token);
 
-			router.push(`badge/${id}`);
+			router.push(`badges/${id}`);
 		}
 
 		loginUser();

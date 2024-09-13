@@ -51,7 +51,7 @@ export default function CreateBadge() {
 		}
 
 		async function createBadge() {
-			const badgeEndpoint = "http://localhost:8000/api/badge";
+			const badgeEndpoint = "http://localhost:8000/api/badges";
 			const method = "POST";
 			const body = JSON.stringify({
 				full_name: fullName,
@@ -84,7 +84,7 @@ export default function CreateBadge() {
 
 			const { id }: UserPayload = decodeJWT(token);
 
-			router.push(`/badge/${id}`);
+			router.push(`/badges/${id}`);
 		}
 
 		createBadge();

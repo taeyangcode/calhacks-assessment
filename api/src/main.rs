@@ -220,6 +220,50 @@ async fn badge_create(
     }
 }
 
+async fn badge(
+    database: web::Data<FirestoreDb>,
+    path: web::Path<String>,
+) -> actix_web::Result<actix_web::HttpResponse> {
+    let id = path.into_inner();
+
+    let user_collection = match database
+        .fluent()
+        .select()
+        .from(DatabaseCollection::Users.as_ref())
+        .obj::<User>()
+        .query()
+        .await
+    {
+        Ok(users) => users,
+        Err(_) => return Ok(HttpResponse::InternalServerError().finish()),
+    };
+
+    #[derive(Debug, Serialize, Deserialize)]
+    struct Details {
+        pub id: Option<String>,
+        pub full_name: Option<String>,
+        pub university: Option<String>,
+        pub major: Option<String>,
+        pub graduation_date: Option<u64>,
+        pub github: Option<String>,
+    }
+
+    match user_collection
+        .into_iter()
+        .find(|registered| registered.id.as_ref() == Some(&id))
+    {
+        Some(user) => Ok(HttpResponse::Ok().json(Details {
+            id: user.id,
+            full_name: user.full_name,
+            university: user.university,
+            major: user.major,
+            graduation_date: user.graduation_date,
+            github: user.github,
+        })),
+        None => return Ok(HttpResponse::BadRequest().finish()),
+    }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let _ = dotenvy::from_path("./.env");
@@ -244,8 +288,9 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(database.clone()))
             .route("/api/signup", web::post().to(signup))
             .route("/api/login", web::post().to(login))
-            .route("/api/badge", web::post().to(badge_create))
-        // .route("/api/badge/{id}", web::get().to(badge))
+            .route("/api/badges", web::post().to(badge_create))
+            .route("/api/badges/{id}", web::get().to(badge))
+            .route("/api/profile/{id}", web::get().to(badge))
     })
     .bind(("127.0.0.1", backend_port))?
     .run()

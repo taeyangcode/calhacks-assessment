@@ -42,7 +42,7 @@ export default function Signup() {
 				return;
 			}
 
-			router.push(`/badge/${userPayload.id}`);
+			router.push(`/badges/${userPayload.id}`);
 		} catch {
 			localStorage.removeItem("token");
 			return;
@@ -81,7 +81,7 @@ export default function Signup() {
 			const token: string = await response.text();
 			localStorage.setItem("token", token.replaceAll('"', ""));
 
-			router.push("/badge/create");
+			router.push("/badges/create");
 		}
 
 		signupUser();
