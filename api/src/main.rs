@@ -1,3 +1,4 @@
+use actix_cors::Cors;
 use actix_web::{
     error::{ErrorConflict, ErrorInternalServerError},
     http::header::ContentType,
@@ -104,7 +105,8 @@ async fn main() -> std::io::Result<()> {
 
     let database_project_id = dotenvy::var("FIRESTORE_PROJECT_ID").unwrap();
     let database_service_account_path = dotenvy::var("FIREBASE_SERVICE_ACCOUNT_PATH").unwrap();
-    let port = dotenvy::var("BACKEND_PORT")
+    let frontend_port = dotenvy::var("FRONTEND_PORT").unwrap();
+    let backend_port = dotenvy::var("BACKEND_PORT")
         .unwrap()
         .parse::<u16>()
         .unwrap();
@@ -117,11 +119,14 @@ async fn main() -> std::io::Result<()> {
     .unwrap();
 
     HttpServer::new(move || {
+        let cors = Cors::default().allowed_origin(format!("http://localhost:{}/", frontend_port).as_str());
+
         App::new()
+            .wrap(cors)
             .app_data(web::Data::new(database.clone()))
             .route("/api/signup", web::post().to(signup))
     })
-    .bind(("127.0.0.1", port))?
+    .bind(("127.0.0.1", backend_port))?
     .run()
     .await
 }
