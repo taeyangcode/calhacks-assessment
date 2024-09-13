@@ -1,6 +1,9 @@
 # os specific
 **/*.DS_Store
 
+# environment variables
+.env
+
 # rust
 
 # build directory
